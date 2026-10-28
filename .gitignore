@@ -1,0 +1,13 @@
+# FF SDK devkit: proprietary, re-download from api-docs.ff.com
+aegis_devkit/
+ff_sdk_aegis_devkit*.zip
+*.whl
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# macOS
+.DS_Store
