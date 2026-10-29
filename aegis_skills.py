@@ -57,10 +57,26 @@ async def hold_attitude(dog, seconds, hz=20, **vel):
         await asyncio.sleep(1 / hz)
 
 
-async def stand_up(dog):
-    """stand() returns immediately; wait for the measured stand time (~4 s)."""
-    await dog.motion.stand()
+async def stand_up(dog, extra_s=4.0):
+    """stand() returns immediately; wait for the measured stand time (~4 s).
+
+    The robot can accept stand() and then not stand (seen on a wheeled unit
+    with "sdk is dismatch"), so confirm STANDING via status() and raise if
+    not, rather than sending moves the dog will reject or silently ignore.
+    """
+    res = await dog.motion.stand()
+    print("stand:", res.message or "ok")
     await asyncio.sleep(dog.motion.preset_timeout("stand"))
+    if DRY_RUN:
+        return
+    status = None
+    for _ in range(int(extra_s / 0.5)):
+        status = await dog.state.status()
+        if status is RobotStatus.STANDING:
+            return
+        await asyncio.sleep(0.5)
+    raise RuntimeError(f"dog did not stand (status {status}); "
+                       "power-cycle the robot and run check again")
 
 
 async def wait_settled(dog, floor_s, extra_s=10.0):
@@ -118,7 +134,7 @@ async def skill_greet(dog):
         await dog.motion.do_preset("shake_hand")  # measured ~10 s
         await wait_settled(dog, dog.motion.preset_timeout("shake_hand"))
     except CapabilityNotSupported:
-        print("shake_hand needs the footed chassis - skipping")
+        print("shake_hand: footed chassis only, skipped on this wheeled dog (not an error)")
 
     await dog.motion.do_preset("lie_down")
     await asyncio.sleep(dog.motion.preset_timeout("lie_down"))
